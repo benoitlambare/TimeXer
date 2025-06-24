@@ -1,0 +1,15 @@
+python run.py \
+  --task_name forecasting \
+  --is_training 1 \
+  --model_id river_TimeXer_1 \
+  --model TimeXer \
+  --data river \
+  --root_path dataset/river/ \
+  --data_path danube.csv \
+  --seq_len 24 \
+  --label_len 18 \
+  --pred_len 6 \
+  --train_epochs  50 \
+  --batch_size 16 \
+  --learning_rate 0.001 \
+  --checkpoints results/river/TimeXer/
