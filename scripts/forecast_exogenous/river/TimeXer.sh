@@ -1,9 +1,9 @@
-python run.py \
+python3 -u run.py \
   --task_name long_term_forecast \
-  --is_training 1 \
+  --is_training 0 \
   --model_id river_TimeXer_1 \
   --model TimeXer \
-  --data river \
+  --data custom \
   --root_path dataset/river/ \
   --data_path danube.csv \
   --seq_len 24 \
@@ -12,4 +12,7 @@ python run.py \
   --train_epochs  50 \
   --batch_size 16 \
   --learning_rate 0.001 \
-  --checkpoints results/river/TimeXer/ \
+  --features MS \
+  --target Value \
+  --freq d
+

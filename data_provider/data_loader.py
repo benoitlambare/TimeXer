@@ -297,6 +297,9 @@ class Dataset_Custom(Dataset):
         df_raw.columns: ['date', ...(other features), target feature]
         """
         cols = list(df_raw.columns)
+        cols.remove("Unit")
+        cols.remove("Property")
+        cols.remove("time")
         cols.remove(self.target)
         cols.remove("date")
         df_raw = df_raw[["date"] + cols + [self.target]]
@@ -1044,68 +1047,71 @@ class Dataset_Meteorology(Dataset):
         return self.scaler.inverse_transform(data)
 
 
-class Dataset_RiverForecast(Dataset):
-    def __init__(
-        self,
-        args,
-        root_path=None,
-        data_path=None,
-        flag=None,
-        size=None,
-        features=None,
-        target=None,
-        timeenc=None,
-        freq=None,
-        seasonal_patterns=None,
-    ):
-        # Taille des fenêtres
-        self.W = size[0]  # seq_len
-        self.H = size[2]  # pred_len
+# class Dataset_RiverForecast(Dataset):
+#     def __init__(
+#         self,
+#         args,
+#         root_path=None,
+#         data_path=None,
+#         flag="train",
+#         size=None,
+#         features=None,
+#         target=None,
+#         timeenc=None,
+#         freq=None,
+#         seasonal_patterns=None,
+#     ):
+#         assert flag in ["train", "test", "val"]
+#         type_map = {"train": 0, "val": 1, "test": 2}
+#         self.set_type = type_map[flag]
+#         # Taille des fenêtres
+#         self.W = size[0]  # seq_len
+#         self.H = size[2]  # pred_len
 
-        # Lecture du CSV
-        df = pd.read_csv(f"{root_path}/{data_path}", parse_dates=["Time"])
+#         # Lecture du CSV
+#         df = pd.read_csv(f"{root_path}/{data_path}", parse_dates=["Time"])
 
-        # Construire self.data : toutes les colonnes numériques
-        arr = df[["tp", "t2m", "e", "sro", "swvl1", "Value"]].to_numpy()
-        self.data = (arr - arr.mean(axis=0)) / arr.std(axis=0)
+#         # Construire self.data : toutes les colonnes numériques
+#         arr = df[["tp", "t2m", "e", "sro", "swvl1", "Value"]].to_numpy()
+#         self.data = (arr - arr.mean(axis=0)) / arr.std(axis=0)
 
-        # --- Génération des features temporelles ---
-        # On part de la série de timestamps
-        times = df["Time"]
+#         # --- Génération des features temporelles ---
+#         # On part de la série de timestamps
+#         times = df["Time"]
 
-        # Exemple d'encodage sin/cos pour jour de l'année et jour de la semaine
-        day_of_year = times.dt.dayofyear.values
-        day_of_week = times.dt.dayofweek.values
-        month = times.dt.month.values
+#         # Exemple d'encodage sin/cos pour jour de l'année et jour de la semaine
+#         day_of_year = times.dt.dayofyear.values
+#         day_of_week = times.dt.dayofweek.values
+#         month = times.dt.month.values
 
-        # Construit un array (N, 6) : sin/cos pour jour_de_l'année, sin/cos pour jour_de_la_semaine, sin/cos pour mois
-        doy_sin = np.sin(2 * np.pi * day_of_year / 365.0)
-        doy_cos = np.cos(2 * np.pi * day_of_year / 365.0)
-        dow_sin = np.sin(2 * np.pi * day_of_week / 7.0)
-        dow_cos = np.cos(2 * np.pi * day_of_week / 7.0)
-        mth_sin = np.sin(2 * np.pi * (month - 1) / 12.0)
-        mth_cos = np.cos(2 * np.pi * (month - 1) / 12.0)
+#         # Construit un array (N, 6) : sin/cos pour jour_de_l'année, sin/cos pour jour_de_la_semaine, sin/cos pour mois
+#         doy_sin = np.sin(2 * np.pi * day_of_year / 365.0)
+#         doy_cos = np.cos(2 * np.pi * day_of_year / 365.0)
+#         dow_sin = np.sin(2 * np.pi * day_of_week / 7.0)
+#         dow_cos = np.cos(2 * np.pi * day_of_week / 7.0)
+#         mth_sin = np.sin(2 * np.pi * (month - 1) / 12.0)
+#         mth_cos = np.cos(2 * np.pi * (month - 1) / 12.0)
 
-        self.data_mark = np.stack(
-            [doy_sin, doy_cos, dow_sin, dow_cos, mth_sin, mth_cos], axis=1
-        )
+#         self.data_mark = np.stack(
+#             [doy_sin, doy_cos, dow_sin, dow_cos, mth_sin, mth_cos], axis=1
+#         )
 
-    def __len__(self):
-        return len(self.data) - self.W - self.H + 1
+#     def __len__(self):
+#         return len(self.data) - self.W - self.H + 1
 
-    def __getitem__(self, idx):
-        # X : window d'entrée sur toutes les colonnes (tp..Value)
-        X = self.data[idx : idx + self.W, :]
-        # y : cible "Value" only avec dimension features=1
-        y = self.data[idx + self.W : idx + self.W + self.H, -1:].copy()
+#     def __getitem__(self, idx):
+#         # X : window d'entrée sur toutes les colonnes (tp..Value)
+#         X = self.data[idx : idx + self.W, :]
+#         # y : cible "Value" only avec dimension features=1
+#         y = self.data[idx + self.W : idx + self.W + self.H, -1:].copy()
 
-        # Découpage des features temporelles alignées
-        X_mark = self.data_mark[idx : idx + self.W, :]
-        y_mark = self.data_mark[idx + self.W : idx + self.W + self.H, :]
+#         # Découpage des features temporelles alignées
+#         X_mark = self.data_mark[idx : idx + self.W, :]
+#         y_mark = self.data_mark[idx + self.W : idx + self.W + self.H, :]
 
-        return (
-            torch.tensor(X, dtype=torch.float32),  # (W, 6) tp,t2m,e,sro,swvl1,Value
-            torch.tensor(y, dtype=torch.float32),  # (H, 1)
-            torch.tensor(X_mark, dtype=torch.float32),  # (W, 6) sin/cos features
-            torch.tensor(y_mark, dtype=torch.float32),  # (H, 6)
-        )
+#         return (
+#             torch.tensor(X, dtype=torch.float32),  # (W, 6) tp,t2m,e,sro,swvl1,Value
+#             torch.tensor(y, dtype=torch.float32),  # (H, 1)
+#             torch.tensor(X_mark, dtype=torch.float32),  # (W, 6) sin/cos features
+#             torch.tensor(y_mark, dtype=torch.float32),  # (H, 6)
+#         )
